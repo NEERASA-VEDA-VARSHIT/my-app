@@ -2,21 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 import { generateBlueprint } from "@/lib/archai/decision-engine";
 import { analyzeConstraints } from "@/lib/archai/constraint-analyzer";
 import { createSuccessResponse, createErrorResponse } from "@/types/api";
-import { BlueprintInputSchema } from "@/db/schema";
+import { FullRequirementsSchema } from "@/db/requirements-schema";
 import { ZodError } from "zod";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+    const { answers, ...input } = body;
     
     // Validate input
-    const validatedInput = BlueprintInputSchema.parse(body);
+    const validatedInput = FullRequirementsSchema.parse(input);
     
     // Analyze constraints to get advisory
     const advisory = analyzeConstraints(validatedInput);
 
-    // Generate architecture blueprint
-    const blueprint = await generateBlueprint(validatedInput, advisory);
+    const blueprint = await generateBlueprint(validatedInput, answers);
 
     return NextResponse.json(createSuccessResponse(blueprint));
     

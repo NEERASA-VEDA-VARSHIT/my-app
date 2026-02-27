@@ -32,12 +32,14 @@ import { runBuildSession } from "@/lib/archai/build-agent"
 
 interface BlueprintResultProps {
   blueprint: Blueprint
+  onClarify?: (answers: Record<string, string>) => void
+  isClarifying?: boolean
 }
 
 type TabType = "overview" | "product" | "architecture" | "engineering" | "quality" | "performance" | "ship" | "handoff" | "audit"
 type BuildState = "idle" | "dispatching" | "building" | "qa" | "shipping" | "done"
 
-export function BlueprintResult({ blueprint }: BlueprintResultProps) {
+export function BlueprintResult({ blueprint, onClarify, isClarifying }: BlueprintResultProps) {
   const [activeTab, setActiveTab] = useState<TabType>("overview")
   const [buildState, setBuildState] = useState<BuildState>("idle")
   const [buildLogs, setBuildLogs] = useState<string[]>([])
@@ -99,9 +101,125 @@ export function BlueprintResult({ blueprint }: BlueprintResultProps) {
     }, 7000)
   }
 
+  const [clarificationAnswers, setClarificationAnswers] = useState<Record<string, string>>({})
+
+  const handleClarifySubmit = () => {
+    if (onClarify) onClarify(clarificationAnswers)
+  }
+
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [buildLogs])
+
+  // --- SPECIAL RENDER: Clarification Required ---
+  if (blueprint.clarification?.status === "pending") {
+    return (
+      <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500">
+        <Card className="border-amber-500/20 bg-zinc-950 shadow-2xl overflow-hidden">
+          <div className="h-1.5 w-full bg-amber-500/50" />
+          <CardHeader>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center border border-amber-500/20 text-amber-400">
+                <AlertCircle className="w-6 h-6" />
+              </div>
+              <div>
+                <CardTitle className="text-xl text-white">Engineering Clarification Required</CardTitle>
+                <CardDescription className="text-zinc-400">
+                  The orchestrator detected potential architectural instability. Please resolve these constraints to continue.
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid gap-6">
+              {blueprint.clarification.questions.map((q) => (
+                <div key={q.id} className="space-y-3">
+                  <label className="text-sm font-bold text-zinc-300 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                    {q.label}
+                  </label>
+                  
+                  {q.type === "text" && (
+                    <textarea 
+                      className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-sm text-zinc-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all"
+                      placeholder="Type your response..."
+                      rows={3}
+                      onChange={(e) => setClarificationAnswers(prev => ({ ...prev, [q.id]: e.target.value }))}
+                    />
+                  )}
+
+                  {q.type === "choice" && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {q.options?.map((opt) => (
+                        <button
+                          key={opt}
+                          onClick={() => setClarificationAnswers(prev => ({ ...prev, [q.id]: opt }))}
+                          className={cn(
+                            "p-3 rounded-lg border text-left text-xs font-bold transition-all",
+                            clarificationAnswers[q.id] === opt 
+                              ? "bg-blue-600/10 border-blue-500 text-blue-400" 
+                              : "bg-zinc-900/50 border-zinc-800 text-zinc-500 hover:border-zinc-700"
+                          )}
+                        >
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {q.type === "boolean" && (
+                    <div className="flex gap-2">
+                      {["Yes", "No"].map((opt) => (
+                        <button
+                          key={opt}
+                          onClick={() => setClarificationAnswers(prev => ({ ...prev, [q.id]: opt }))}
+                          className={cn(
+                            "px-6 py-2 rounded-lg border text-xs font-bold transition-all",
+                            clarificationAnswers[q.id] === opt 
+                              ? "bg-blue-600/10 border-blue-500 text-blue-400" 
+                              : "bg-zinc-900/50 border-zinc-800 text-zinc-500 hover:border-zinc-700"
+                          )}
+                        >
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <button 
+              onClick={handleClarifySubmit}
+              disabled={isClarifying || Object.keys(clarificationAnswers).length < blueprint.clarification.questions.length}
+              className="w-full py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-bold text-sm transition-all shadow-lg flex items-center justify-center gap-2"
+            >
+              {isClarifying ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                  Synchronizing Decisions...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-4 h-4" />
+                  Finalize Architecture
+                </>
+              )}
+            </button>
+          </CardContent>
+        </Card>
+
+        {/* Audit Mini-Trace */}
+        <div className="p-4 bg-zinc-900/40 rounded-xl border border-border/10">
+          <div className="flex items-center gap-2 mb-2 text-zinc-500 text-[10px] font-bold uppercase tracking-widest">
+            <History className="w-3 h-3" />
+            Active Orchestration Pass: D1 (Halted)
+          </div>
+          <p className="text-xs text-zinc-400">The system has generated a potential execution graph but requires your input to finalize service decomposition strategy (D3) and engineering contracts (D4).</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -633,20 +751,48 @@ export function BlueprintResult({ blueprint }: BlueprintResultProps) {
                     The autonomous orchestrator has completed all 9 domains of analysis, validation, and optimization. Your project is ready for initial deployment.
                   </p>
                 </div>
-                <div className="flex items-center justify-center gap-4 pt-4">
-                  <div className="bg-zinc-900/80 px-4 py-2 rounded-lg border border-zinc-700">
-                    <span className="text-[10px] uppercase text-zinc-500 block">Stability Index</span>
-                    <span className="text-xl font-mono text-green-400 font-bold">{blueprint.handoffSpec.readinessScore}%</span>
-                  </div>
-                  {blueprint.handoffSpec.readinessScore > 90 && (
-                    <div className="bg-green-500/10 px-4 py-2 rounded-lg border border-green-500/20">
-                      <span className="text-[10px] uppercase text-green-500 block">Certification</span>
-                      <span className="text-xs font-bold text-green-400 flex items-center gap-1.5 pt-0.5">
-                        <ShieldCheck className="w-3 h-3" /> HIGH RELIABILITY
-                      </span>
+                <div className="flex flex-col items-center justify-center gap-6 pt-4">
+                  <div className="flex items-center gap-8 bg-zinc-900/40 p-6 rounded-2xl border border-border/10">
+                    <div className="relative w-24 h-24 flex items-center justify-center">
+                      <svg className="w-full h-full -rotate-90">
+                        <circle 
+                          cx="48" cy="48" r="40" 
+                          className="stroke-zinc-800 fill-none" 
+                          strokeWidth="8" 
+                        />
+                        <circle 
+                          cx="48" cy="48" r="40" 
+                          className="stroke-blue-500 fill-none transition-all duration-1000 ease-out" 
+                          strokeWidth="8" 
+                          strokeDasharray={2 * Math.PI * 40}
+                          strokeDashoffset={2 * Math.PI * 40 * (1 - (blueprint.handoffSpec.readinessScore / 100))}
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span className="text-2xl font-bold text-white leading-none">{blueprint.handoffSpec.readinessScore}%</span>
+                        <span className="text-[8px] uppercase text-zinc-500 font-bold tracking-widest mt-1">Ready</span>
+                      </div>
                     </div>
-                  )}
-                  <button className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-lg flex items-center gap-2 font-bold text-sm transition-all shadow-[0_0_20px_rgba(37,99,235,0.4)]">
+
+                    <div className="space-y-3">
+                      <div className="bg-zinc-900/80 px-4 py-2 rounded-lg border border-zinc-700 min-w-[140px]">
+                        <span className="text-[10px] uppercase text-zinc-500 block">Stability Index</span>
+                        <span className="text-xl font-mono text-green-400 font-bold">{blueprint.handoffSpec.readinessScore}%</span>
+                      </div>
+                      {blueprint.handoffSpec.readinessScore > 90 && (
+                        <div className="bg-green-500/10 px-4 py-2 rounded-lg border border-green-500/20">
+                          <span className="text-[10px] uppercase text-green-500 block">Certification</span>
+                          <span className="text-xs font-bold text-green-400 flex items-center gap-1.5 pt-0.5">
+                            <ShieldCheck className="w-3 h-3" /> HIGH RELIABILITY
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <button className="bg-blue-600 hover:bg-blue-500 text-white px-8 py-3 rounded-lg flex items-center gap-3 font-bold text-sm transition-all shadow-[0_0_30px_rgba(37,99,235,0.4)] group overflow-hidden relative">
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
                     <Download className="w-4 h-4" />
                     Download Handoff Package
                   </button>
@@ -732,6 +878,13 @@ export function BlueprintResult({ blueprint }: BlueprintResultProps) {
                       </div>
                       <p className="text-[11px] text-zinc-400 mb-2">{step.details}</p>
                       
+                      {step.details.includes("Intelligence Grounding") && (
+                        <div className="mt-3 p-2 bg-blue-500/5 border border-blue-500/20 rounded flex items-center gap-3">
+                          <Zap className="w-3 h-3 text-blue-400 animate-pulse" />
+                          <span className="text-[10px] text-blue-300 font-bold italic">RAG Intelligence Seasoning Active</span>
+                        </div>
+                      )}
+
                       {step.repairs && step.repairs.length > 0 && (
                         <div className="space-y-1 mt-3 pt-3 border-t border-zinc-800">
                           <span className="text-[10px] font-bold text-amber-500/80 uppercase tracking-tighter block mb-1">Self-Repair Actions:</span>

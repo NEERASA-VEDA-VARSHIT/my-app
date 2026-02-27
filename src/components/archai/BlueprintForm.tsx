@@ -261,13 +261,13 @@ export function BlueprintForm({ onSubmit, isLoading }: BlueprintFormProps) {
                 </span>
               </AlertTitle>
               <AlertDescription className="mt-2 space-y-3">
-                {analysis.clarificationQuestions.length > 0 && (
+                {analysis.questions && analysis.questions.length > 0 && (
                   <div className="bg-background/50 p-2 rounded border border-border/50">
                     <p className="text-xs font-bold uppercase mb-1 flex items-center gap-1 opacity-70">
                       <HelpCircle className="w-3 h-3" /> System requires context:
                     </p>
                     <ul className="list-disc list-inside text-sm space-y-1">
-                      {analysis.clarificationQuestions.map((q, i) => <li key={i}>{q}</li>)}
+                      {analysis.questions.map((q, i) => <li key={q.id || i}>{q.label}</li>)}
                     </ul>
                   </div>
                 )}

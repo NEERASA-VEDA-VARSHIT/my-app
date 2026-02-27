@@ -1,0 +1,32 @@
+[
+  {
+    "id": "event-driven",
+    "keywords": ["realtime", "streaming", "events", "websocket", "chat", "notifications"],
+    "name": "Event-Driven & Streaming Architecture",
+    "patterns": [
+      "Use Redis Pub/Sub for low-latency message distribution.",
+      "Implement WebSocket horizontal scaling with a central state backend.",
+      "Consider Apache Kafka for persistent event streaming if scale exceeds 100k events/sec."
+    ]
+  },
+  {
+    "id": "enterprise-security",
+    "keywords": ["enterprise", "compliance", "secure", "gov", "rbac", "audit"],
+    "name": "Enterprise Security & Governance",
+    "patterns": [
+      "Implement OIDC/SAML integration for SSO capabilities.",
+      "Ensure all PII is encrypted at rest using AES-256.",
+      "Maintain immutable audit logs for every state-changing API request."
+    ]
+  },
+  {
+    "id": "high-scale-data",
+    "keywords": ["big-data", "analytics", "high-throughput", "search", "indexing"],
+    "name": "High-Throughput Data Patterns",
+    "patterns": [
+      "Use Read-Replicas for database scaling in read-heavy workloads.",
+      "Implement Elasticsearch for complex text-search requirements.",
+      "Partition large tables in PostgreSQL to maintain query performance."
+    ]
+  }
+]

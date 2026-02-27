@@ -3,6 +3,18 @@ import { z } from "zod";
 export const BlueprintSchema = z.object({
   startupSummary: z.string(),
   
+  // Interactive State
+  clarification: z.object({
+    status: z.enum(["pending", "resolved"]),
+    questions: z.array(z.object({
+      id: z.string(),
+      label: z.string(),
+      type: z.enum(["text", "choice", "boolean"]),
+      options: z.array(z.string()).optional(),
+      answer: z.string().optional()
+    }))
+  }).optional(),
+  
   // STEP 3: Product Spec (PRD)
   productSpec: z.object({
     personas: z.array(z.string()),

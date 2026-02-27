@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { BlueprintForm } from "@/components/archai/BlueprintForm"
+import { RequirementsWizard } from "@/components/archai/wizard/RequirementsWizard"
 import { BlueprintResult } from "@/components/archai/BlueprintResult"
 import { Blueprint } from "@/db/output-schema"
 import { ApiResponse } from "@/types/api"
@@ -10,22 +10,34 @@ import "nprogress/nprogress.css"
 
 export default function Home() {
   const [blueprint, setBlueprint] = useState<Blueprint | null>(null)
+  const [lastInput, setLastInput] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [isClarifying, setIsClarifying] = useState(false)
 
-  const handleGenerate = async (data: any) => {
-    let retries = 2;
+  const handleGenerate = async (data: any, answersOrEvent?: any) => {
+    let retries = 0; // Limit to 1 call until fixed
     let success = false;
 
-    setIsLoading(true)
+    // Detect if second arg is a SyntheticEvent or actual answers
+    const isEvent = answersOrEvent && (typeof answersOrEvent === 'object' && ('nativeEvent' in answersOrEvent || 'preventDefault' in answersOrEvent));
+    const answers = isEvent ? undefined : answersOrEvent;
+
+    if (answers) {
+      setIsClarifying(true);
+    } else {
+      setIsLoading(true);
+      setLastInput(data);
+      setBlueprint(null); // Clear previous results on fresh start
+    }
+    
     nProgress.start()
-    setBlueprint(null)
 
     while (retries >= 0 && !success) {
       try {
         const response = await fetch("/api/v1/generate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data),
+          body: JSON.stringify({ ...data, answers }),
         })
 
         if (!response.ok) throw new Error("Network response was not ok");
@@ -44,12 +56,17 @@ export default function Home() {
           alert("Generation failed after multiple attempts: " + error.message);
         }
         retries--;
-        if (retries >= 0) await new Promise(r => setTimeout(r, 1000)); // Wait before retry
+        if (retries >= 0) await new Promise(r => setTimeout(r, 1000));
       }
     }
     
     setIsLoading(false)
+    setIsClarifying(false)
     nProgress.done()
+  }
+
+  const handleClarify = (answers: Record<string, string>) => {
+    handleGenerate(lastInput, answers);
   }
 
   return (
@@ -71,13 +88,17 @@ export default function Home() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+        <div >
           <div className="lg:col-span-5">
-            <BlueprintForm onSubmit={handleGenerate} isLoading={isLoading} />
+            <RequirementsWizard onSubmit={handleGenerate} isLoading={isLoading} />
           </div>
-          <div className="lg:col-span-7">
+          {/* <div className="lg:col-span-7">
             {blueprint ? (
-              <BlueprintResult blueprint={blueprint} />
+              <BlueprintResult 
+                blueprint={blueprint} 
+                onClarify={handleClarify}
+                isClarifying={isClarifying}
+              />
             ) : (
               <div className="h-full min-h-[400px] rounded-xl border border-dashed border-white/10 flex flex-col items-center justify-center p-12 text-center space-y-4">
                 <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center">
@@ -91,7 +112,7 @@ export default function Home() {
                 </div>
               </div>
             )}
-          </div>
+          </div> */}
         </div>
       </div>
 
